@@ -2,19 +2,11 @@ package rocket;
 
 struct tenDOF_t
 {
-	int64_t time;
-	double  Yaw;
-	double  Pitch;
-	double  Roll;
-	double  MagX;
-	double  MagY;
-	double  MagZ;
-	double  AccelX;
-	double  AccelY;
-	double  AccelZ;
-	double  GyroX;
-	double  GyroY;
-	double  GyroZ;
-	double  Temp;
-	double  Press;
+	int64_t  time;
+	vector_t Orient;
+	vector_t Mag;
+	vector_t Accel;
+	vector_t Gyro;
+	double   Temp;
+	double   Press;
 }
