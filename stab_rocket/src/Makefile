@@ -1,9 +1,9 @@
 #
 CFLAGS= -g -Wall -O2
 LIBS= -llcm
-INCLUDES= -I.\
-    -Iinc \
-    -Irocket
+INCLUDES= -I../\
+    -I../inc \
+    -I../rocket
 
 SRCS = tenDOF.cpp tenDOF_main.cpp
 OBJS = $(SRCS:.cpp=.o)

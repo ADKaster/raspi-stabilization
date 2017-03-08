@@ -10,15 +10,25 @@ else
 fi
 
 if [ $BUILD == "all" ] ; then
-    echo "Generating python bindings..."
+    echo "Generating language bindings..."
     ./gen-types.sh
     echo "Generating .jar file..."
     ./createjar.sh
     echo "Types built!"
+    echo "Calling make in src"
+    cd src
+    make $BUILD
+    cd ../
+    cp src/tenDOF .
 elif [ $BUILD == "clean" ] ; then
+    echo "Calling make clean in src"
+    cd src
+    make $BUILD
+    cd ../
     echo "Cleaning build artifacts..."
-    rm my_types.jar
+    rm -f my_types.jar
     rm -rf rocket
+    rm -f tenDOF
     echo "Artifacts cleaned!"
 else
     echo "Invalid parameter, candidates are: all clean"

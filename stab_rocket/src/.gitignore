@@ -1,0 +1,6 @@
+#project specific files
+my_types.jar
+rocket/*
+*.o
+*~
+tenDOF
