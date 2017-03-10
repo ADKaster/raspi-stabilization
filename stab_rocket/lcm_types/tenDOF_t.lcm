@@ -3,7 +3,6 @@ package rocket;
 struct tenDOF_t
 {
 	int64_t  time;
-	vector_t Orient;
 	vector_t Mag;
 	vector_t Accel;
 	vector_t Gyro;
