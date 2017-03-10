@@ -11,59 +11,80 @@ extern "C"
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <errno.h>
+#include <time.h>
 }
 #include <lcm/lcm-cpp.hpp>
 #include "rocket/tenDOF_t.hpp"
 #include "rocket/vector_t.hpp"
 #include "rocket/vector_raw_t.hpp"
 
+/* Datasheet reference: */
+/* https://cdn-shop.adafruit.com/datasheets/LSM303DLHC.PDF */
+
+
+#define LSM303_ACC_SENS         (0.012F)    /* 12 mg/LSB per page 9 of datasheet */
+#define G_TO_MS2                (9.80665F)  /* 1 g to m/s^2 */
+#define LSM303_MAG_LSBGAUSS_XY  (670.0F)      /* LSB/Gauss. Depends on gain. see pg 9 of datasheet*/
+#define LSM303_MAG_LSBGAUSS_Z   (600.0F)
+#define DPS_TO_RAD              (0.017453293F) /* Degrees/sec to rad/sec */
+
 uint8_t tenDOF_driver::devAddrs[TENDOF_NUMDEV] = 
         {L3GD20_ADDR, LSM303_MAG_ADDR, LSM303_ACC_ADDR, BMP180_ADDR};
 
+
 tenDOF_driver::tenDOF_driver(char *filename)
 {
+    uint64_t funcs;
+
     if ((this->fd = open(filename, O_RDWR | O_NONBLOCK)) < 0)
     {
-        std::cout << "Failed to open the bus" << std::endl;
+        std::cout << "Failed to open the I2C bus" << std::endl;
         exit(1);
     }
-    uint64_t funcs;
-    for (int i = 0; i < TENDOF_NUMDEV; i++)
+
+    if (ioctl(this->fd, I2C_FUNCS, &funcs) < 0)
     {
-        if (ioctl(this->fd, I2C_FUNCS, &funcs) < 0)
-        {
-            std::cout << "Failed to get I2C_FUNC ioctl" << std::endl;
-            exit(1);
-        }
-        if (funcs & I2C_FUNC_I2C)
-        {
-            this->useSmbus[i] = FALSE;
-        }
-        else if (funcs & I2C_FUNC_SMBUS_WORD_DATA)
-        {
-            this->useSmbus[i] = TRUE;
-        }
-        else
-        {
-            std::cout << "Invalid I2C funcs: " << std::hex << funcs << std::dec << std::endl;
-        }
+        std::cout << "Failed to get I2C_FUNC ioctl" << std::endl;
+        exit(1);
     }
+
+    if (funcs & I2C_FUNC_I2C)
+    {
+        this->useSmbus = FALSE;
+        std::cout << "I2C Bus supports I2C_RDWR" << std::endl;
+    }
+    else if (funcs & I2C_FUNC_SMBUS_WORD_DATA)
+    {
+        this->useSmbus = TRUE;
+        std::cout << "I2C Bus only supports SMBUS" << std::endl;
+    }
+    else
+    {
+        std::cout << "Invalid I2C funcs: " << std::hex << funcs << std::dec << std::endl;
+    }
+}
+
+tenDOF_driver::~tenDOF_driver()
+{
+    close(fd);
 }
 
 int tenDOF_driver::i2cWrite(uint8_t devIdx, uint8_t *data, int size)
 {
     int retVal = 0;
-    if (useSmbus[devIdx])
+    if (useSmbus)
     {
         std::cout << "Remind Andrew to implement SMBUS" << std::endl;
         retVal = -1;
     }
     else
     {
-        struct i2c_msg messages[1] = {0};
+        struct i2c_msg messages[1];
+
         messages[0].addr = devAddrs[devIdx];
         messages[0].buf = data;
         messages[0].len = size;
+        messages[0].flags = 0;
 
         struct i2c_rdwr_ioctl_data payload;
         payload.msgs = messages;
@@ -73,7 +94,10 @@ int tenDOF_driver::i2cWrite(uint8_t devIdx, uint8_t *data, int size)
         if (retVal < 0)
         {
             retVal = -errno;
+#ifdef DEBUG_V
             std::cout << "Could not use I2C_RDWR on device " << devIdx << std::endl;
+            std::cout << "\terrno: " << errno << std::endl; 
+#endif
         }
     }
     return retVal;
@@ -83,7 +107,7 @@ int tenDOF_driver::i2cRead(uint8_t devIdx, uint8_t regStart, uint8_t *data, int 
 {
     int retVal = 0;
 
-    if(useSmbus[devIdx])
+    if(useSmbus)
     {
         std::cout << "Remind Andrew to implement I2C read with SMBUS" << std::endl;
         retVal = -1;
@@ -93,6 +117,7 @@ int tenDOF_driver::i2cRead(uint8_t devIdx, uint8_t regStart, uint8_t *data, int 
         struct i2c_msg messages[2];
 
         messages[0].addr = devAddrs[devIdx];
+        messages[0].flags = 0;
         messages[0].len = 1;
         messages[0].buf = &regStart;
 
@@ -109,7 +134,10 @@ int tenDOF_driver::i2cRead(uint8_t devIdx, uint8_t regStart, uint8_t *data, int 
         if(retVal < 0)
         {
             retVal = -errno;
+#ifdef DEBUG_V
             std::cout << "Could not use I2C_RDWR on device " << devIdx << std::endl;
+            std::cout << "\terrno: " << errno << std::endl; 
+#endif
         }
     }
     return retVal;
@@ -117,19 +145,28 @@ int tenDOF_driver::i2cRead(uint8_t devIdx, uint8_t regStart, uint8_t *data, int 
 
 void tenDOF_driver::init_accel(void)
 {
+    /* 100Hz : enable all 3 axes see datasheet pg 24 */
     uint8_t msg[] = {LSM303_REGISTER_ACCEL_CTRL_REG1_A , 0x57};
     i2cWrite(LSM303_ACC_IDX, msg, 2);
-    
+
+
+    /* +- 16g output */
+    msg[0] = LSM303_REGISTER_ACCEL_CTRL_REG4_A;
+    msg[1] = 0x30;
+    i2cWrite(LSM303_ACC_IDX, msg, 2);
+
+
     std::cout << "accelerometer initalized" << std::endl;   
 }
 
 void tenDOF_driver::init_mag(void)
 {
-    uint8_t msg[] = {LSM303_REGISTER_MAG_CRA_REG_M, 0x00};
+    /* Set output data rate to 220 Hz*/
+    uint8_t msg[] = {LSM303_REGISTER_MAG_CRA_REG_M, 0x1C};
     i2cWrite(LSM303_MAG_IDX, msg, 2);
 
     msg[0] = LSM303_REGISTER_MAG_CRB_REG_M;
-    msg[1] = LSM303_MAGGAIN_1_3;
+    msg[1] = LSM303_MAGGAIN_2_5; /* +- 2.5 mG */
     i2cWrite(LSM303_MAG_IDX, msg, 2);
 
     std::cout << "magnetometer initalized" << std::endl;
@@ -152,8 +189,9 @@ void tenDOF_driver::init_gyro(void)
     /* Reset then switch to normal mode and enable all three channels */
     i2cWrite(L3GD20_IDX, msg, 2);
 
+    /* Output data rate = 190Hz with 12.5 cutoff (cutoff what? idk) */
     msg[0] = GYRO_REGISTER_CTRL_REG1;
-    msg[1] = 0x0F;
+    msg[1] = 0x4F;
     i2cWrite(L3GD20_IDX, msg, 1);
     /* ------------------------------------------------------------------ */
     
@@ -162,7 +200,7 @@ void tenDOF_driver::init_gyro(void)
     BIT  Symbol    Description                                   Default
     ---  ------    --------------------------------------------- -------
     5-4  HPM1/0    High-pass filter mode selection                    00
-       3-0  HPCF3..0  High-pass filter cutoff frequency selection      0000 */
+    3-0  HPCF3..0  High-pass filter cutoff frequency selection      0000 */
     /* Nothing to do ... keep default values */
     /* ------------------------------------------------------------------ */
 
@@ -194,6 +232,8 @@ void tenDOF_driver::init_gyro(void)
                                     10 = 2000 dps
                                     11 = 2000 dps
         0  SIM       SPI Mode (0=4-wire, 1=3-wire)                       0 */
+
+    /* 500DPS */
     msg[0] = GYRO_REGISTER_CTRL_REG4;
     msg[1] = 0x10;
     i2cWrite(L3GD20_IDX, msg, 1);
@@ -220,7 +260,7 @@ void tenDOF_driver::init_press(void)
     std::cout << "Initialized pressure sensor. jk it's unimplemented." << std::endl;
 }
 
-int tenDOF_driver::read_accel(rocket::vector_raw_t *raw)
+int tenDOF_driver::read_accel(rocket::vector_t *accel)
 {
     int retVal = 0;
     uint8_t buffer[6] = {0};
@@ -228,22 +268,72 @@ int tenDOF_driver::read_accel(rocket::vector_raw_t *raw)
 
     retVal = i2cRead(LSM303_ACC_IDX, reg_start, buffer, 6);
 
-/*   // Shift values to create properly formed integer (low byte first)
-  raw.x = (int16_t)(xlo | (xhi << 8)) >> 4;
-  raw.y = (int16_t)(ylo | (yhi << 8)) >> 4;
-  raw.z = (int16_t)(zlo | (zhi << 8)) >> 4;*/
-
-
     if(retVal >= 0)
     {
-        raw->x = (int16_t)(buffer[0] | (buffer[1] << 8)) >> 4;
-        raw->y = (int16_t)(buffer[2] | (buffer[3] << 8)) >> 4;
-        raw->z = (int16_t)(buffer[4] | (buffer[5] << 8)) >> 4;
+
+        rocket::vector_raw_t raw;
+
+        raw.x = (int16_t)(buffer[0] | (buffer[1] << 8)) >> 4;
+        raw.y = (int16_t)(buffer[2] | (buffer[3] << 8)) >> 4;
+        raw.z = (int16_t)(buffer[4] | (buffer[5] << 8)) >> 4;
+
+        accel->x = (double)raw.x * LSM303_ACC_SENS * G_TO_MS2;
+        accel->y = (double)raw.y * LSM303_ACC_SENS * G_TO_MS2;
+        accel->z = (double)raw.z * LSM303_ACC_SENS * G_TO_MS2;
     }
 
     return retVal;
 }
 
+int tenDOF_driver::read_mag(rocket::vector_t *mag)
+{
+    int retVal = 0;
+    uint8_t buffer[6] = {0};
+    uint8_t reg_start = LSM303_REGISTER_MAG_OUT_X_H_M; /* Read starting at this register */
+
+    retVal = i2cRead(LSM303_MAG_IDX, reg_start, buffer, 6);
+
+    if(retVal >= 0)
+    {
+        rocket::vector_raw_t raw;
+
+        /* X Z Y MSB then LSB */
+        raw.x = (int16_t)(buffer[1] | (int16_t)(buffer[0] << 8));
+        raw.z = (int16_t)(buffer[3] | (int16_t)(buffer[2] << 8));
+        raw.y = (int16_t)(buffer[5] | (int16_t)(buffer[4] << 8));
+
+        mag->x = (double)raw.x / LSM303_MAG_LSBGAUSS_XY;
+        mag->y = (double)raw.y / LSM303_MAG_LSBGAUSS_XY;
+        mag->z = (double)raw.z / LSM303_MAG_LSBGAUSS_Z;
+    }
+
+    return retVal;
+}
+
+int tenDOF_driver::read_gyro(rocket::vector_t *gyro)
+{
+    int retVal = 0;
+    uint8_t buffer[6] = {0};
+    uint8_t reg_start = (GYRO_REGISTER_OUT_X_L | 0x80); //want to read starting at this register
+
+    retVal = i2cRead(LSM303_ACC_IDX, reg_start, buffer, 6);
+
+    if(retVal >= 0)
+    {
+
+        rocket::vector_raw_t raw;
+
+        raw.x = (int16_t)(buffer[0] | (int16_t)(buffer[1] << 8));
+        raw.y = (int16_t)(buffer[2] | (int16_t)(buffer[3] << 8));
+        raw.z = (int16_t)(buffer[4] | (int16_t)(buffer[5] << 8));
+
+        gyro->x = (double)raw.x * GYRO_SENSITIVITY_500DPS * DPS_TO_RAD;
+        gyro->y = (double)raw.y * GYRO_SENSITIVITY_500DPS * DPS_TO_RAD;
+        gyro->z = (double)raw.z * GYRO_SENSITIVITY_500DPS * DPS_TO_RAD;
+    }
+
+    return retVal;
+}
 
 int tenDOF_driver::run(void)
 {
@@ -253,8 +343,21 @@ int tenDOF_driver::run(void)
         return 1;       
     }
     
-    rocket::tenDOF_t pubData;
-    
+    struct timespec prev_time;
+    struct timespec curr_time;
+
+    int64_t prev_ms;
+    int64_t curr_ms;
+
+    if(clock_gettime(CLOCK_MONOTONIC, &prev_time)){
+        std::cout << "Could not get prev_time" << std::endl;
+    }
+    if(clock_gettime(CLOCK_MONOTONIC, &curr_time)){
+        std::cout << "Could not get curr_time" << std::endl;
+    }
+    prev_ms = prev_time.tv_sec * 1000 + prev_time.tv_nsec / 1000000;
+    curr_ms = curr_time.tv_sec * 1000 + curr_time.tv_nsec / 1000000;
+
     /* write initialization values */
     init_accel();
     init_mag();
@@ -263,13 +366,47 @@ int tenDOF_driver::run(void)
 
     for(;;)
     {
-        for(int i = 0; i < TENDOF_NUMDEV; i++)
+        if(clock_gettime(CLOCK_MONOTONIC, &curr_time)){
+            std::cout << "Could not get curr_time" << std::endl;
+            continue;
+        }        
+        curr_ms = curr_time.tv_sec * 1000 + curr_time.tv_nsec / 1000000;
+
+        /* do at 100Hz */
+        if((curr_ms - prev_ms) >= 10)
         {
-            /*read all data and convert into values */       
-        }
-        lcm.publish("TENDOF", &pubData);
-        /*publish */
-        /* wait for howerver many ms between reads */
-    }
+#ifdef DEBUG_V
+            std::cout << (curr_ms - prev_ms) << std::endl;
+#endif
+            prev_ms = curr_ms;
+            pubData.time = curr_ms;
+            if(read_accel(&(pubData.Accel))){
+#ifdef DEBUG
+                std::cout << "Invalid accelerometer data" << std::endl;
+#endif
+                pubData.Accel.x = 0.0;
+                pubData.Accel.y = 0.0;
+                pubData.Accel.z = 0.0;
+            }
+            if(read_mag(&(pubData.Mag))){
+#ifdef DEBUG
+                std::cout << "Invalid magnetometer data" << std::endl;
+#endif
+                pubData.Mag.x = 0.0;
+                pubData.Mag.y = 0.0;
+                pubData.Mag.z = 0.0;
+            }
+            if(read_gyro(&(pubData.Gyro))){
+#ifdef DEBUG
+                std::cout << "Invalid gyroscope data" << std::endl;
+#endif
+                pubData.Gyro.x = 0.0;
+                pubData.Gyro.y = 0.0;
+                pubData.Gyro.z = 0.0;                
+            }
+
+            lcm.publish("TENDOF", &pubData);
+        }/* End of 10ms check*/
+    }/* End of infinite loop */
     return 0;
 }

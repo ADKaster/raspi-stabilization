@@ -8,24 +8,24 @@ INCLUDES= -I../\
 SRCS = tenDOF.cpp tenDOF_main.cpp
 OBJS = $(SRCS:.cpp=.o)
 
-MAINS = tenDOF
+MAINS = tenDOF 
 
-.PHONY: all clean
+DEBUG = $(DEBUG)
+
+
+.PHONY: all clean remake
 
 all: $(MAINS)
 	@echo Done compiling $(MAINS)
 
 $(MAINS): $(OBJS)
-	g++ $(CFLAGS) $(INCLUDES) -o $(MAINS) $(OBJS) $(LIBS)
-
-#tenDOF.o: tenDOF.cpp
-#	g++ $(CFLAGS) $(INCLUDE) $(LIBS) tenDOF.cpp9
-
-#tenDOF_main.o: tenDOF_main.cpp
-#	g++ $(CFLAGS) $(INCLUDE) $(LIBS) tenDOF_main.cpp
+	g++ $(CFLAGS) $(INCLUDES) $(DEBUG) -o $(MAINS) $(OBJS) $(LIBS)
 
 .cpp.o:
-	g++ $(CFLAGS) $(INCLUDES) -c $< -o $@
+	g++ $(CFLAGS) $(INCLUDES) $(DEBUG) -c $< -o $@
 
 clean:
 	$(RM) *.o *~ $(MAINS)
+
+remake: clean all
+	@echo Finished remake

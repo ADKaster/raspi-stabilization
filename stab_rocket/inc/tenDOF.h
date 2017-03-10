@@ -7,7 +7,8 @@
 
 #include <string>
 #include <stdint.h>
-#include "rocket/vector_raw_t.hpp"
+#include "rocket/vector_t.hpp"
+#include "rocket/tenDOF_t.hpp"
 #include "lsm303.h"
 #include "l3gd20.h"
 
@@ -29,8 +30,9 @@ class tenDOF_driver
 {
 private:
     static uint8_t devAddrs[TENDOF_NUMDEV];
-    char useSmbus[TENDOF_NUMDEV];
+    bool useSmbus;
     int  fd;
+    rocket::tenDOF_t pubData;
 
     int i2cWrite(uint8_t devIdx, uint8_t *data, int size);
     int i2cRead(uint8_t devIdx, uint8_t reg_start, uint8_t *data, int size);
@@ -40,10 +42,13 @@ private:
     void init_gyro(void);
     void init_press(void);
 
-    int read_accel(rocket::vector_raw_t *raw);
+    int read_accel(rocket::vector_t *accel);
+    int read_mag(rocket::vector_t *mag);
+    int read_gyro(rocket::vector_t *gyro);
 
 public:
     tenDOF_driver(char *filename);
+    ~tenDOF_driver();
 
     int run(void);
 };
