@@ -21,6 +21,8 @@ extern "C"
 /* Datasheet reference: */
 /* https://cdn-shop.adafruit.com/datasheets/LSM303DLHC.PDF */
 
+/* For documentation of I2C-dev ioctls, see https://www.kernel.org/doc/Documentation/i2c/dev-interface */
+
 
 #define LSM303_ACC_SENS         (0.012F)    /* 12 mg/LSB per page 9 of datasheet */
 #define G_TO_MS2                (9.80665F)  /* 1 g to m/s^2 */
