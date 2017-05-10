@@ -1,0 +1,8 @@
+package rocket;
+
+struct altimeter_t
+{
+	int64_t time;
+	double alt_meters;
+	double pressure_bar;
+}

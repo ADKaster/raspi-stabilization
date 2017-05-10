@@ -1,0 +1,8 @@
+package rocket;
+
+struct save_data_t {
+	int64_t time;
+	tenDOF_t tenDOF_data;
+	gps_t gps_data;
+	kf_resid_t kf_residuals;
+}

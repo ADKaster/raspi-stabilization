@@ -1,0 +1,11 @@
+package rocket;
+
+struct kf_resid_t {
+	int64_t time;
+	double ang_deviation;
+	vector_t rotation;
+	vector_t rotation_rate;
+	vector_t accel;
+	vector_t velocity;
+	vector_t pos;
+}
