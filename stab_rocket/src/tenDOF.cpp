@@ -72,6 +72,7 @@ tenDOF_driver::~tenDOF_driver()
     close(fd);
 }
 
+/* Returns either -errno if there was an issue, OR the number of messages processed */
 int tenDOF_driver::i2cWrite(uint8_t devIdx, uint8_t *data, int size)
 {
     int retVal = 0;
@@ -106,6 +107,7 @@ int tenDOF_driver::i2cWrite(uint8_t devIdx, uint8_t *data, int size)
     return retVal;
 }
 
+/* Returns either -errno if there was an issue, OR the number of messages processed */
 int tenDOF_driver::i2cRead(uint8_t devIdx, uint8_t regStart, uint8_t *data, int size)
 {
     int retVal = 0;
@@ -383,7 +385,7 @@ int tenDOF_driver::run(void)
 #endif
             prev_ms = curr_ms;
             pubData.time = curr_ms;
-            if(read_accel(&(pubData.Accel))){
+            if(read_accel(&(pubData.Accel)) < 0){
 #ifdef DEBUG
                 std::cout << "Invalid accelerometer data" << std::endl;
 #endif
@@ -391,7 +393,7 @@ int tenDOF_driver::run(void)
                 pubData.Accel.y = 0.0;
                 pubData.Accel.z = 0.0;
             }
-            if(read_mag(&(pubData.Mag))){
+            if(read_mag(&(pubData.Mag)) < 0){
 #ifdef DEBUG
                 std::cout << "Invalid magnetometer data" << std::endl;
 #endif
@@ -399,7 +401,7 @@ int tenDOF_driver::run(void)
                 pubData.Mag.y = 0.0;
                 pubData.Mag.z = 0.0;
             }
-            if(read_gyro(&(pubData.Gyro))){
+            if(read_gyro(&(pubData.Gyro)) < 0){
 #ifdef DEBUG
                 std::cout << "Invalid gyroscope data" << std::endl;
 #endif
