@@ -41,6 +41,7 @@ tenDOF_driver::tenDOF_driver(char *filename)
     if ((this->fd = open(filename, O_RDWR | O_NONBLOCK)) < 0)
     {
         std::cout << "Failed to open the I2C bus" << std::endl;
+        std::cout << "Did you use sudo? Proper device is /dev/i2c-1" << std::endl;
         exit(1);
     }
 

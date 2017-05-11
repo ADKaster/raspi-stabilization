@@ -1,12 +1,14 @@
 #
-CFLAGS= -g -Wall -O2
-LIBS= -llcm
+# Use pkg-config to lookup the proper compiler and linker flags for LCM
+CFLAGS= -g -Wall -O2 `pkg-config --cflags lcm`
+LIBS= `pkg-config --libs lcm`
 INCLUDES= -I../\
     -I../inc \
     -I../rocket
 
-SRCS = tenDOF.cpp tenDOF_main.cpp
-OBJS = $(SRCS:.cpp=.o)
+SRCS_TENDOF = tenDOF.cpp\
+              tenDOF_main.cpp
+OBJS_TENDOF = $(SRCS_TENDOF:.cpp=.o)
 
 MAINS = tenDOF 
 
@@ -18,8 +20,8 @@ DEBUG = $(DEBUG)
 all: $(MAINS)
 	@echo Done compiling $(MAINS)
 
-$(MAINS): $(OBJS)
-	g++ $(CFLAGS) $(INCLUDES) $(DEBUG) -o $(MAINS) $(OBJS) $(LIBS)
+tenDOF: $(OBJS_TENDOF)
+	g++ -o $@ $^ $(LIBS)
 
 .cpp.o:
 	g++ $(CFLAGS) $(INCLUDES) $(DEBUG) -c $< -o $@
@@ -29,3 +31,4 @@ clean:
 
 remake: clean all
 	@echo Finished remake
+
