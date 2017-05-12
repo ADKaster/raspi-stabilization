@@ -10,10 +10,13 @@ SRCS_TENDOF = tenDOF.cpp\
               tenDOF_main.cpp
 OBJS_TENDOF = $(SRCS_TENDOF:.cpp=.o)
 
-MAINS = tenDOF 
+SRCS_GYRO = I3G4250D.cpp \
+			I3G4250D_main.cpp
+OBJS_GYRO = $(SRCS_GYRO:.cpp=.o)
+
+MAINS = tenDOF gyroscope
 
 DEBUG = $(DEBUG)
-
 
 .PHONY: all clean remake
 
@@ -21,6 +24,9 @@ all: $(MAINS)
 	@echo Done compiling $(MAINS)
 
 tenDOF: $(OBJS_TENDOF)
+	g++ -o $@ $^ $(LIBS)
+
+gyroscope: $(OBJS_GYRO)
 	g++ -o $@ $^ $(LIBS)
 
 .cpp.o:

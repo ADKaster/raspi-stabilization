@@ -10,7 +10,8 @@ export LCM_DEFAULT_URL=udpm://239.255.255.250:7667?ttl=3
 #lcm-logger -s ./log/lcm-log-%F-%T &
 #. ./runspy.sh &
 
-./tenDOF /dev/i2c-1
+#./tenDOF /dev/i2c-1
+./gyroscope /dev/i2c-1
 
 kill %1 %2
 

@@ -7,9 +7,9 @@ echo "raspi-stabilization stab_rocket build.sh:"
 if [[ $DEBUG -eq 0 ]] ; then
     DBG= 
 elif [[ $DEBUG -eq 1 ]] ; then
-    DBG=-DDEBUG
+    DBG="-DDEBUG"
 else
-    DBG=-DDEBUG_V -DDEBUG
+    DBG="-DDEBUG -DDEBUG_V"
 fi
 
 if [[ $# -eq 0 ]] ; then
@@ -27,9 +27,10 @@ if [ $BUILD == "all" ] ; then
     echo "Types built!"
     echo "Calling make in src"
     cd src
-    make $BUILD DEBUG=$DBG
+    make $BUILD DEBUG="$DBG"
     cd ../
     cp src/tenDOF .
+    cp src/gyroscope .
 elif [ $BUILD == "remake" ] ; then
     echo "Cleaning build artifacts..."
     rm -f my_types.jar
@@ -43,9 +44,10 @@ elif [ $BUILD == "remake" ] ; then
     echo "Types built!"
     echo "Calling make remake in src"
     cd src
-    make $BUILD DEBUG=$DBG
+    make $BUILD DEBUG="$DBG"
     cd ../
     cp src/tenDOF .
+    cp src/gyroscope .
 elif [ $BUILD == "clean" ] ; then
     echo "Calling make clean in src"
     cd src
@@ -55,6 +57,7 @@ elif [ $BUILD == "clean" ] ; then
     rm -f my_types.jar
     rm -rf rocket
     rm -f tenDOF
+    rm -f gyroscope
     echo "Artifacts cleaned!"
 else
     echo "Invalid parameter, candidates are: all clean"

@@ -1,0 +1,8 @@
+package rocket;
+
+struct gyro_t
+{
+	int64_t time;
+	vector_t rad_s;
+	vector_raw_t raw;
+}

@@ -4,3 +4,4 @@ rocket/*
 *.o
 *~
 tenDOF
+gyroscope

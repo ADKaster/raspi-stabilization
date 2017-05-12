@@ -4,5 +4,6 @@ rocket/*
 *.o
 *~
 tenDOF
+gyroscope
 log*
 
